@@ -92,48 +92,33 @@ async function syncProject(projectId, rootAbs) {
   if (batch.length === 0) return;
 
   const userId = process.env.SYNC_USER_ID?.trim();
-  if (!userId) {
-    console.error("[sync] SYNC_USER_ID is not set; skipping batch.");
-    return;
-  }
+  if (!userId) return;
 
   clearChanges(projectId);
 
   try {
     await applyProjectFiles(userId, projectId, rootAbs, batch);
   } catch (err) {
-    console.error(
-      `[sync] project_files failed for "${projectId}":`,
-      err.message,
-    );
-    const concurrent = getChanges(projectId);
-    clearChanges(projectId);
-    for (const c of batch) addChange(projectId, c);
-    for (const c of concurrent) addChange(projectId, c);
+    console.error(err.message);
     return;
   }
 
+  // 👇 THIS MUST BE AFTER applyProjectFiles
   const rows = batch.map((c) => ({
     project_id: projectId,
+    file_path: toPosix(c.file_name),
     file_name: toPosix(c.file_name),
     change_type: c.change_type,
-    timestamp: c.timestamp,
   }));
 
   const { error } = await supabase.from("changes").insert(rows);
 
   if (error) {
-    console.error(`[sync] changes insert failed for "${projectId}":`, error.message);
-    const concurrent = getChanges(projectId);
-    clearChanges(projectId);
-    for (const c of batch) addChange(projectId, c);
-    for (const c of concurrent) addChange(projectId, c);
+    console.error("[sync] changes insert failed:", error.message);
     return;
   }
 
-  console.log(
-    `[sync] completed for "${projectId}" (${rows.length} change row(s), project_files updated)`,
-  );
+  console.log(`[sync] completed for "${projectId}"`);
 }
 
 async function runSyncTick() {

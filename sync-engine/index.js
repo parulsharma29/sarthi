@@ -1,5 +1,5 @@
 import "dotenv/config";
-import "./supabase.js";
+import { supabase } from "./supabase.js";
 
 import { projectRefreshSeconds, syncIntervalSeconds } from "./config.js";
 import { loadProjectsFromSupabase } from "./projects.js";
@@ -25,3 +25,4 @@ setInterval(() => {
 }, projectRefreshSeconds * 1000);
 
 startSyncLoop();
+
